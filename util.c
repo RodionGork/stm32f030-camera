@@ -3,13 +3,13 @@
 char hex[] = "0123456789ABCDEF";
 short adc[8];
 
-void uartEnable() {
+void uartEnable(int divisor) {
     REG_L(GPIOA_BASE, GPIO_MODER) &= ~(3 << (9 * 2));
     REG_L(GPIOA_BASE, GPIO_MODER) |= (2 << (9 * 2)); // PA9 alternate function (TX)
     REG_L(GPIOA_BASE, GPIO_AFRH) &= ~(0xF << ((9 - 8) * 4));
     REG_L(GPIOA_BASE, GPIO_AFRH) |= (1 << ((9 - 8) * 4)); // PA9 alternate function 1
     REG_L(RCC_BASE, RCC_AHB2ENR) |= (1 << 14); // UART clock
-    REG_L(USART_BASE, USART_BRR) |= 833; // 9600 baud on 8MHz
+    REG_L(USART_BASE, USART_BRR) |= divisor;
     REG_L(USART_BASE, USART_CR1) |= 1; // UART enable
     //REG_L(USART_BASE, USART_CR1) |= (1 << 2); // UART receive enable
     REG_L(USART_BASE, USART_CR1) |= (1 << 3); // UART transmit enable

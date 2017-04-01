@@ -1,7 +1,7 @@
 #ifndef __UTIL_H_
 #define __UTIL_H_
 
-void uartEnable();
+void uartEnable(int divisor);
 void adcEnable();
 void adcRead(int channels);
 void uartSend(int c);
