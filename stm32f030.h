@@ -27,6 +27,7 @@
 #define RCC_APB1ENR RCC_AHB1ENR
 
 #define GPIO_MODER 0x00
+#define GPIO_IDR 0x10
 #define GPIO_BSRR 0x18
 #define GPIO_AFRL 0x20
 #define GPIO_AFRH 0x24
@@ -46,6 +47,7 @@
 
 #define TIM_CR1 0x00
 #define TIM_SMCR 0x08
+#define TIM_EGR 0x14
 #define TIM_CCMR1 0x18
 #define TIM_CCER 0x20
 #define TIM_CNT 0x24

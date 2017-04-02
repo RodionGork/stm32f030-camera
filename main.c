@@ -34,29 +34,84 @@ void timer3SetupCountInput(unsigned short prescale) {
     REG_S(TIM3_BASE, TIM_CR1) = 1; // start
 }
 
+void timer3Restart(unsigned short prescale) {
+    REG_S(TIM3_BASE, TIM_CR1) = 0;
+    REG_S(TIM3_BASE, TIM_PSC) = prescale - 1;
+    REG_S(TIM3_BASE, TIM_CNT) = 0;
+    REG_S(TIM3_BASE, TIM_EGR) = 1;
+    REG_S(TIM3_BASE, TIM_CR1) = 1;
+}
+
+void pinModeOutputA(int i) {
+    REG_L(GPIOA_BASE, GPIO_MODER) |= (1 << (i * 2));
+}
+
+void pinOutputA(int i, char v) {
+    if (v == 0) {
+        i += 16;
+    }
+    REG_L(GPIOA_BASE, GPIO_BSRR) = (1 << i);
+}
+
+void pinModeInputA(int i) {
+    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(1 << (i * 2));
+}
+
+char pinInputA(int i) {
+    return (char) ((REG_L(GPIOA_BASE, GPIO_IDR) >> i) & 1);
+}
+
+void twoWireClk(char v) {
+    pinOutputA(1, v);
+}
+
+void twoWireData(char v) {
+    pinModeOutputA(2);
+    pinOutputA(2, v);
+}
+
+char twoWireRead() {
+    pinModeInputA(2);
+    return pinInputA(2);
+}
+
+void twoWireDelay() {
+    int n = 50; while (n--);
+}
+
 int main() {
     setupPll(48);
     int n, i;
     REG_L(RCC_BASE, RCC_AHBENR) |= (1 << 17);
     
-    REG_L(GPIOA_BASE, GPIO_MODER) |= 1;
+    pinModeOutputA(0);
+    pinModeOutputA(1);
     
     uartEnable(48000000 / 921600);
     uartSends("Started...");
     
     timer17SetupToggleOutput(1, 3);
-    timer3SetupCountInput(8000);
+    int mul = 1;
+    timer3SetupCountInput(mul);
     
     i = 0;
     
     while(1) {
-        REG_L(GPIOA_BASE, GPIO_BSRR) = (1 << 0);
+        pinOutputA(0, 1);
         n=1364000; while(--n);
-        REG_L(GPIOA_BASE, GPIO_BSRR) = (1 << 16);
+        pinOutputA(0, 0);
         n=3000000; while(--n);
-        uartSendDec(REG_S(TIM3_BASE, TIM_CNT));
+        n = REG_S(TIM3_BASE, TIM_CNT);
+        uartSendDec(n);
+        uartSend('*');
+        uartSendDec(mul);
         uartSends("\n");
         i += 1;
+        mul *= 10;
+        if (mul > 1000) {
+            mul = 1;
+        }
+        timer3Restart(mul);
     }    
 }
 
