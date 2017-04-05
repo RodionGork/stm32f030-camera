@@ -54,7 +54,7 @@ void pinOutputA(int i, char v) {
 }
 
 void pinModeInputA(int i) {
-    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(1 << (i * 2));
+    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(3 << (i * 2));
 }
 
 char pinInputA(int i) {
@@ -66,17 +66,110 @@ void twoWireClk(char v) {
 }
 
 void twoWireData(char v) {
-    pinModeOutputA(2);
     pinOutputA(2, v);
 }
 
-char twoWireRead() {
+void twoWireAsOutput() {
+    pinModeOutputA(2);
+}
+
+void twoWireAsInput() {
     pinModeInputA(2);
+}
+
+char twoWireRead() {
     return pinInputA(2);
 }
 
 void twoWireDelay() {
-    int n = 50; while (n--);
+    int n = 500; while (n--);
+}
+
+void twoWireStart() {
+    twoWireClk(1);
+    twoWireDelay();
+    twoWireData(1);
+    twoWireDelay();
+    twoWireData(0);
+    twoWireDelay();
+    twoWireClk(0);
+    twoWireDelay();
+}
+
+void twoWireStop() {
+    twoWireData(0);
+    twoWireDelay();
+    twoWireClk(1);
+    twoWireDelay();
+    twoWireData(1);
+    twoWireDelay();
+    twoWireRead();
+    twoWireDelay();
+}
+
+int twoWireWriteByte(unsigned char b) {
+    int i;
+    for (i = 0; i < 8; i++) {
+        twoWireData((b & 0x80) ? 1 : 0);
+        b <<= 1;
+        twoWireDelay();
+        twoWireClk(1);
+        twoWireDelay();
+        twoWireClk(0);
+    }
+    twoWireAsInput();
+    twoWireDelay();
+    twoWireClk(1);
+    twoWireDelay();
+    i = twoWireRead();
+    twoWireClk(0);
+    twoWireDelay();
+    twoWireAsOutput();
+    return i;
+}
+
+unsigned char twoWireReadByte() {
+    int i;
+    unsigned char b = 0;
+    twoWireAsInput();
+    for (i = 0; i < 8; i++) {
+        b <<= 1;
+        twoWireDelay();
+        twoWireClk(1);
+        twoWireDelay();
+        b |= twoWireRead();
+        twoWireClk(0);
+    }
+    twoWireAsOutput();
+    twoWireData(1);
+    twoWireDelay();
+    twoWireClk(1);
+    twoWireDelay();
+    twoWireClk(0);
+    return b;
+}
+
+int cameraReadByte(unsigned char addr) {
+    unsigned char res;
+    twoWireStart();
+    twoWireWriteByte(0x42);
+    twoWireWriteByte(addr);
+    twoWireStop();
+    twoWireStart();
+    twoWireWriteByte(0x43);
+    res = twoWireReadByte();
+    twoWireStop();
+    return res;
+}
+
+int cameraWriteByte(unsigned char addr, unsigned char v) {
+    unsigned char res;
+    int a = 0;
+    twoWireStart();
+    a |= twoWireWriteByte(0x42);
+    a |= (twoWireWriteByte(addr) << 1);
+    a |= (twoWireWriteByte(v) << 2);
+    twoWireStop();
 }
 
 int main() {
@@ -86,15 +179,33 @@ int main() {
     
     pinModeOutputA(0);
     pinModeOutputA(1);
+    pinOutputA(1, 1);
+    twoWireAsOutput();
+    REG_L(GPIOA_BASE, GPIO_PUPDR) |= (1 << 2 * 2);
+    twoWireDelay();
     
     uartEnable(48000000 / 921600);
-    uartSends("Started...");
+    uartSends("Started...\n");
+    
     
     timer17SetupToggleOutput(1, 3);
     int mul = 1;
     timer3SetupCountInput(mul);
     
     i = 0;
+    
+    cameraWriteByte(0x11, 0x00);
+    cameraWriteByte(0x12, 0x08);
+    for (n = 0; n < 0x20; n++) {
+        uartSendHex(n, 2);
+        uartSends(": ");
+        uartSendHex(cameraReadByte(n), 2);
+        if (n % 4 == 3) {
+            uartSends("\n");
+        } else {
+            uartSends("   ");
+        }
+    }
     
     while(1) {
         pinOutputA(0, 1);

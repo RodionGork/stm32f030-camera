@@ -27,6 +27,7 @@
 #define RCC_APB1ENR RCC_AHB1ENR
 
 #define GPIO_MODER 0x00
+#define GPIO_PUPDR 0x0C
 #define GPIO_IDR 0x10
 #define GPIO_BSRR 0x18
 #define GPIO_AFRL 0x20

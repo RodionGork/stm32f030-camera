@@ -6,3 +6,5 @@ arm-linux-gnueabi-objcopy test.elf -O ihex test.hex
 rm *.o
 rm *.map
 rm *.elf
+echo Compile finished
+sleep 1
