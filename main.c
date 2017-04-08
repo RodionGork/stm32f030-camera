@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-#define PIN_INPUT_A(X) ((REG_L(GPIOA_BASE, GPIO_IDR) >> (X)) & 1)
+#define PIN_INPUT_A(X) ((REG_B(GPIOA_BASE, GPIO_IDR) >> (X)) & 1)
 
 #define CAMERA_VSYNC (PIN_INPUT_A(5))
 #define CAMERA_HREF (PIN_INPUT_A(2))
@@ -210,84 +210,67 @@ void cameraInit() {
     uartSend('\n');
 }
 
-unsigned char buf[144*176/8];
 unsigned char line[640];
 
+void collectFrame() {
+    int y;
+    char sample, prev, cur;
+    int pixCnt = 0;
+    short lptr, i;
+    for (y = 0; y < 144; y++) {
+        do {
+            sample = REG_B(GPIOA_BASE, GPIO_IDR);
+        } while ((sample & 0x10) == 0);
+        prev = 0;
+        lptr = 0;
+        do {
+            
+            cur = (sample & 0x40);
+            if (cur != 0 && prev == 0) {
+                pixCnt += 1;
+                line[lptr++] = (sample & 0xF);
+            }
+            prev = cur;
+            
+            sample = REG_B(GPIOA_BASE, GPIO_IDR);
+        } while ((sample & 0x10) != 0);
+        for (i = 1; i < 176 * 2; i += 2) {
+            uartSendHex(line[i], 1);
+        }
+        uartSend('.');
+    }
+    uartSends("---\r\n");
+    uartSendDec(pixCnt);
+    uartSends("---\r\n");
+}
+
 int main() {
+    char vsyncPrev, vsync, n;
     setupPll(48);
-    char n, hrefCnt;
-    int pixCnt, i;
-    short lCnt;
-    char vsyncPrev, hrefPrev, pclkPrev;
-    unsigned char sample;
-    unsigned short idx;
-    unsigned char cur;
-    unsigned char cidx;
-    unsigned char* pline = line;
     REG_L(RCC_BASE, RCC_AHBENR) |= (1 << 17) | (1 << 18) | (1 << 22);
     
     pinModeOutputB(1);
     twoWireInit();
     
-    uartEnable(48000000 / 921600);
+    //uartEnable(48000000 / 921600);
+    uartEnable(48000000 / 3000000);
     uartSends("Started...\n");
     
     
     timer17SetupToggleOutput(1, 3);
     
     cameraInit();
-    
     vsyncPrev = 0;
-    hrefPrev = 0;
-    pclkPrev = 0;
     n = 0;
-    hrefCnt = 0;
-    
     while(1) {
-        sample = *((char*)(GPIOA_BASE + GPIO_IDR));
-        if ((sample & (1 << 5)) == 0) {
-            if (vsyncPrev == 1) {
-                n += 1;
-                pinOutputB(1, n & 1);
-                hrefCnt = 0;
-                pixCnt = 0;
-                idx = 0;
-                cidx = 0;
-            }
-            vsyncPrev = 0;
-        } else {
-            if (vsyncPrev == 0) {
-                uartSendDec(pixCnt);
-                //uartSend(' ');
-                //uartSendDec(hrefCnt);
-                uartSend('\n');
-                if (n % 16 == 3) {
-                    for (i = 0; i < idx; i++) {
-                        uartSendHex(buf[i], 2);
-                    }
-                    uartSends("---\n");
-                }
-            }
-            vsyncPrev = 1;
+        while (vsyncPrev == 0 || vsync != 0) {
+            vsyncPrev = vsync;
+            vsync = REG_B(GPIOA_BASE, GPIO_IDR) & 0x20;
         }
-        if ((sample & (1 << 4)) != 0) {
-            if (hrefPrev == 0) {
-                hrefCnt += 1;
-                pline = line;
-            }
-            hrefPrev = 1;
-            if ((sample & (1 << 6)) != 0) {
-                if (pclkPrev == 0) {
-                    pixCnt += 1;
-                }
-                pclkPrev = 1;
-            } else {
-                pclkPrev = 0;
-            }
-        } else {
-            hrefPrev = 0;
-            pclkPrev = 0;
-        }
+        collectFrame();
+        n += 1;
+        pinOutputB(1, n & 1);
+        vsyncPrev = 0;
     }    
 }
 

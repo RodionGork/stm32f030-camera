@@ -1,8 +1,9 @@
 #ifndef __STM32F030_H_
 #define __STM32F030_H_
 
-#define REG_L(X,Y) ((long*)((void*)((X) + (Y))))[0]
-#define REG_S(X,Y) ((unsigned short*)((void*)((X) + (Y))))[0]
+#define REG_L(X,Y) ((volatile long*)((void*)((X) + (Y))))[0]
+#define REG_S(X,Y) ((volatile unsigned short*)((void*)((X) + (Y))))[0]
+#define REG_B(X,Y) ((volatile unsigned char*)((void*)((X) + (Y))))[0]
 
 #define RCC_BASE 0x40021000
 
