@@ -1,8 +1,8 @@
 /* useful reference: www.linuxselfhelp.com/gnu/ld/html_chapter/ld_toc.html */
 MEMORY
 {
-    flash : org = 0x08000000, len = 16k
-    ram : org = 0x20000000, len = 4k
+    flash : org = 0x08000000, len = 64k
+    ram : org = 0x20000000, len = 20k
 }
   
 SECTIONS
@@ -28,3 +28,5 @@ SECTIONS
 	} > ram
 	BSS_END = .;
 }
+
+

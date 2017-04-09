@@ -1,6 +1,11 @@
-#include "stm32f030.h"
+#include "stm32f103.h"
 
 #include "util.h"
+
+#define CLOCK_MHZ 36
+
+#define FRAME_START 17
+#define FRAME_WIDTH 120
 
 #define PIN_INPUT_A(X) ((REG_B(GPIOA_BASE, GPIO_IDR) >> (X)) & 1)
 
@@ -8,97 +13,42 @@
 #define CAMERA_HREF (PIN_INPUT_A(2))
 #define CAMERA_PCLK (PIN_INPUT_A(6))
 
-void timer17SetupToggleOutput(unsigned short prescale, unsigned short timeout) {
-    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(3 << (7 * 2));
-    REG_L(GPIOA_BASE, GPIO_MODER) |= (2 << (7 * 2)); // PA6 alternate function (TIM17_CH1)
-    REG_L(GPIOA_BASE, GPIO_AFRL) &= ~(0xF << (7 * 4));
-    REG_L(GPIOA_BASE, GPIO_AFRL) |= (5 << (7 * 4)); // PA6 alternate function 5
-    REG_L(RCC_BASE, RCC_APB2ENR) |= (1 << 18); // timer 16 enabled
-    REG_S(TIM17_BASE, TIM_PSC) = prescale - 1; // divide by prescaler
-    REG_S(TIM17_BASE, TIM_ARR) = timeout - 1;
-    REG_S(TIM17_BASE, TIM_CCMR1) = 0x30; // toggle output compare
-    REG_S(TIM17_BASE, TIM_CCER) = 1; // output compare enable
-    REG_S(TIM17_BASE, TIM_CNT) = 0;
-    REG_S(TIM17_BASE, TIM_CCR1) = timeout - 1;
-    REG_S(TIM17_BASE, TIM_BDTR) = 0xC000; // disable output override
-    REG_S(TIM17_BASE, TIM_CR1) = 1; // start
-}
+void timer2SetupToggleOutput(unsigned short prescale, unsigned short timeout) {
+    REG_L(RCC_BASE, RCC_APB2ENR) |= (1 << 0); // AFIO clock
+    REG_L(AFIO_BASE, AFIO_MAPR) &= ~(7 << 24); // JTAG/SW bits clear
+    REG_L(AFIO_BASE, AFIO_MAPR) |= 4 << 24; // disable JTAG/SW
+    REG_L(AFIO_BASE, AFIO_MAPR) &= ~(3 << 8); // no TIM2 remap
+    REG_L(AFIO_BASE, AFIO_MAPR) |= 1 << 8; // TIM2 CH1/2 remapped
+    pinMode(GPIOA_BASE, 15, PIN_MODE_OUT, PIN_CNF_O_APP);
+    REG_L(RCC_BASE, RCC_APB1ENR) |= (1 << 0); // timer 2 enabled
+    REG_S(TIM2_BASE, TIM_PSC) = prescale - 1; // divide by prescaler
+    REG_S(TIM2_BASE, TIM_ARR) = timeout - 1;
+    REG_S(TIM2_BASE, TIM_CNT) = 0;
+    REG_S(TIM2_BASE, TIM_CCR1) = timeout - 1;
+    REG_S(TIM2_BASE, TIM_CCMR1) = 0x30; // toggle output compare
+    REG_S(TIM2_BASE, TIM_CCER) = 1; // output compare enable
+    REG_S(TIM2_BASE, TIM_CR1) = 1; // start
 
-void pinModeOutputA(int i) {
-    REG_L(GPIOA_BASE, GPIO_MODER) |= (1 << (i * 2));
-}
-
-void pinOutputA(int i, char v) {
-    if (v == 0) {
-        i += 16;
-    }
-    REG_L(GPIOA_BASE, GPIO_BSRR) = (1 << i);
-}
-
-void pinModeInputA(int i) {
-    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(3 << (i * 2));
-}
-
-char pinInputA(int i) {
-    return (char) ((REG_L(GPIOA_BASE, GPIO_IDR) >> i) & 1);
-}
-
-void pinModeOutputB(int i) {
-    REG_L(GPIOB_BASE, GPIO_MODER) |= (1 << (i * 2));
-}
-
-void pinOutputB(int i, char v) {
-    if (v == 0) {
-        i += 16;
-    }
-    REG_L(GPIOB_BASE, GPIO_BSRR) = (1 << i);
-}
-
-void pinModeInputB(int i) {
-    REG_L(GPIOB_BASE, GPIO_MODER) &= ~(3 << (i * 2));
-}
-
-char pinInputB(int i) {
-    return (char) ((REG_L(GPIOB_BASE, GPIO_IDR) >> i) & 1);
-}
-
-void pinModeOutputF(int i) {
-    REG_L(GPIOF_BASE, GPIO_MODER) |= (1 << (i * 2));
-}
-
-void pinOutputF(int i, char v) {
-    if (v == 0) {
-        i += 16;
-    }
-    REG_L(GPIOF_BASE, GPIO_BSRR) = (1 << i);
-}
-
-void pinModeInputF(int i) {
-    REG_L(GPIOF_BASE, GPIO_MODER) &= ~(3 << (i * 2));
-}
-
-char pinInputF(int i) {
-    return (char) ((REG_L(GPIOF_BASE, GPIO_IDR) >> i) & 1);
 }
 
 void twoWireClk(char v) {
-    pinOutputF(1, v);
+    pinOutput(GPIOC_BASE, 14, v);
 }
 
 void twoWireData(char v) {
-    pinOutputF(0, v);
+    pinOutput(GPIOC_BASE, 15, v);
 }
 
 void twoWireAsOutput() {
-    pinModeOutputF(0);
+    pinMode(GPIOC_BASE, 15, PIN_MODE_OUT_SLOW, PIN_CNF_O_PP);
 }
 
 void twoWireAsInput() {
-    pinModeInputF(0);
+    pinMode(GPIOC_BASE, 15, PIN_MODE_IN, PIN_CNF_I_FLT);
 }
 
 char twoWireRead() {
-    return pinInputF(0);
+    return pinInput(GPIOC_BASE, 15);
 }
 
 void twoWireDelay() {
@@ -170,10 +120,9 @@ unsigned char twoWireReadByte() {
 }
 
 void twoWireInit() {
-    pinModeOutputF(1);
-    pinOutputF(1, 1);
+    pinMode(GPIOC_BASE, 14, PIN_MODE_OUT_SLOW, PIN_CNF_O_PP);
+    pinOutput(GPIOC_BASE, 14, 1);
     twoWireAsOutput();
-    REG_L(GPIOF_BASE, GPIO_PUPDR) |= (1 << 2 * 0);
     twoWireDelay();
 }
 
@@ -201,6 +150,7 @@ int cameraWriteByte(unsigned char addr, unsigned char v) {
 }
 
 void cameraInit() {
+    cameraWriteByte(0x0C, 0x08);
     cameraWriteByte(0x11, 0x00);
     cameraWriteByte(0x12, 0x08);
     uartSends("Camera initialization: ");
@@ -210,66 +160,75 @@ void cameraInit() {
     uartSend('\n');
 }
 
+unsigned char frame[144*120];
 unsigned char line[640];
 
 void collectFrame() {
-    int y;
+    int x, y;
     char sample, prev, cur;
     int pixCnt = 0;
-    short lptr, i;
+    short lptr, i, fptr;
+    fptr = 0;
     for (y = 0; y < 144; y++) {
         do {
-            sample = REG_B(GPIOA_BASE, GPIO_IDR);
-        } while ((sample & 0x10) == 0);
+            sample = REG_B(GPIOB_BASE, GPIO_IDR);
+        } while ((sample & 0x02) == 0);
         prev = 0;
         lptr = 0;
         do {
-            
-            cur = (sample & 0x40);
+            sample = REG_B(GPIOB_BASE, GPIO_IDR);
+            cur = (sample & 0x01);
             if (cur != 0 && prev == 0) {
+                line[lptr++] = REG_B(GPIOA_BASE, GPIO_IDR);
                 pixCnt += 1;
-                line[lptr++] = (sample & 0xF);
             }
             prev = cur;
-            
-            sample = REG_B(GPIOA_BASE, GPIO_IDR);
-        } while ((sample & 0x10) != 0);
-        for (i = 1; i < 176 * 2; i += 2) {
-            uartSendHex(line[i], 1);
+        } while ((sample & 0x02) != 0);
+        for (i = FRAME_START * 2 + 1; i < (FRAME_START + FRAME_WIDTH) * 2 + 1; i += 2) {
+            frame[fptr++] = line[i];
         }
-        uartSend('.');
     }
-    uartSends("---\r\n");
+    uartSends("FRAME: ");
     uartSendDec(pixCnt);
-    uartSends("---\r\n");
+    uartSends("\r\n");
+    fptr = 0;
+    for (y = 0; y < 144; y++) {
+        uartSendDec(y);
+        uartSends(":");
+        for (x = 0; x < FRAME_WIDTH; x++) {
+            uartSend(' ');
+            uartSendDec(frame[fptr++]);
+        }
+        uartSends("\r\n");
+    }
 }
 
 int main() {
-    char vsyncPrev, vsync, n;
-    setupPll(48);
-    REG_L(RCC_BASE, RCC_AHBENR) |= (1 << 17) | (1 << 18) | (1 << 22);
+    char vsyncPrev, vsync;
+    int n;
+    setupPll(CLOCK_MHZ);
+    REG_L(RCC_BASE, RCC_APB2ENR) |= (1 << 2) | (1 << 3) | (1 << 4); // clock to ports A/B/C
     
-    pinModeOutputB(1);
+    pinMode(GPIOB_BASE, 7, PIN_MODE_OUT_SLOW, PIN_CNF_O_PP);
     twoWireInit();
     
-    //uartEnable(48000000 / 921600);
-    uartEnable(48000000 / 3000000);
+    timer2SetupToggleOutput(1, 3);
+    
+    uartEnable(CLOCK_MHZ * 1000000 / 921600);
     uartSends("Started...\n");
     
-    
-    timer17SetupToggleOutput(1, 3);
-    
     cameraInit();
+    
     vsyncPrev = 0;
     n = 0;
     while(1) {
         while (vsyncPrev == 0 || vsync != 0) {
             vsyncPrev = vsync;
-            vsync = REG_B(GPIOA_BASE, GPIO_IDR) & 0x20;
+            vsync = REG_B(GPIOB_BASE, GPIO_IDR) & 0x04;
         }
         collectFrame();
         n += 1;
-        pinOutputB(1, n & 1);
+        pinOutput(GPIOB_BASE, 7, n & 1);
         vsyncPrev = 0;
     }    
 }
