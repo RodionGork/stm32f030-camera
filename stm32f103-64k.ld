@@ -7,26 +7,24 @@ MEMORY
   
 SECTIONS
 {
-        
-	. = ORIGIN(flash);
+    . = ORIGIN(flash);
         .text : {
-		  *(.vectors); /* The interrupt vectors */
-		  *(.text);
+            *(.vectors); /* The interrupt vectors */
+            *(.text);
         } >flash
-	. = ORIGIN(ram);
+    . = ORIGIN(ram);
         .data : {
-	  INIT_DATA_VALUES = LOADADDR(.data);
-	  INIT_DATA_START = .;
-	    *(.data);
-	  INIT_DATA_END = .;
+            INIT_DATA_VALUES = LOADADDR(.data);
+            INIT_DATA_START = .;
+            *(.data);
+            INIT_DATA_END = .;
         } >ram AT>flash
-	BSS_START = .;
-	.bss : {
-	  
-	    *(.bss);
-	  
-	} > ram
-	BSS_END = .;
+    BSS_START = .;
+        .bss : {
+            *(.bss);
+        } > ram
+    BSS_END = .;
+    __stack_top = ORIGIN(ram) + LENGTH(ram);
 }
 
 
