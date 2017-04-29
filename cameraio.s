@@ -1,3 +1,9 @@
+/*
+pclk with xclk=12mhz
+vsync = 7.5 hz
+qcif = 198744 / 1176 pixels
+qvga = 264992 / 1882 pixels
+*/
 .include "macros.i"
 .include "stm32f103.i"
 
@@ -28,11 +34,11 @@ init_camera:
     // disable double clock
     bl camera_write_byte
     ldr r0, = 0x11
-    ldr r1, = 0x00
+    ldr r1, = 0x82 // or 0x00 for 12 mhz
     // output qcif
     bl camera_write_byte
     ldr r0, = 0x12
-    ldr r1, = 0x08
+    ldr r1, = 0x10 // or 0x08 for QCIF
     bl camera_write_byte
     pop {pc}
 
