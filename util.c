@@ -131,15 +131,16 @@ void pinOutputF(int i, char v) {
     REG_L(GPIOF_BASE, GPIO_BSRR) = (1 << i);
 }
 
-void spiEnable(int v) {
-    pinOutputB(6, v ? 0 : 1);
-}
-
 void spiDelay() {
     int n = 50;
     while (n--) {
         asm("nop");
     }
+}
+
+void spiEnable(int v) {
+    pinOutputB(6, v ? 0 : 1);
+    spiDelay();
 }
 
 int spiExchange(int v) {

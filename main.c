@@ -6,6 +6,8 @@
 
 #define CAPTURE_W 180
 #define CAPTURE_H 180
+#define CAPTURE_SHIFT 70
+#define CAPTURE_SKIP_LINES 30
 
 void timer14SetupToggleOutputPB1(unsigned short prescale, unsigned short timeout) {
     REG_L(GPIOB_BASE, GPIO_MODER) &= ~(3 << (1 * 2));
@@ -151,14 +153,6 @@ void cameraInit() {
     uartSendHex(cameraReadByte(0x0A), 2);
     uartSend('.');
     uartSendHex(cameraReadByte(0x0B), 2);
-    uartSend('.');
-    uartSendHex(cameraReadByte(0x2A), 2);
-    uartSend('.');
-    uartSendHex(cameraReadByte(0x2B), 2);
-    uartSend('.');
-    uartSendHex(cameraReadByte(0x2D), 2);
-    uartSend('.');
-    uartSendHex(cameraReadByte(0x2E), 2);
     uartSend('\n');
 }
 
@@ -171,7 +165,7 @@ void collectFrame() {
     spiExchange(0);
     spiExchange(0);
     
-    y = CAPTURE_H;
+    y = CAPTURE_H + CAPTURE_SKIP_LINES;
     
     waitVsyncStart:
     a = REG_L(GPIOA_BASE, GPIO_IDR);
@@ -183,11 +177,13 @@ void collectFrame() {
     
     nextLine:
     
-    x = CAPTURE_W + 70;
+    x = CAPTURE_W + CAPTURE_SHIFT;
     
     waitHrefStart:
     a = REG_L(GPIOA_BASE, GPIO_IDR);
     if ((a & (1 << 12)) == 0) goto waitHrefStart;
+    
+    if (y > CAPTURE_H) goto waitHrefEnd;
     
     nextPixel:
     
@@ -205,9 +201,8 @@ void collectFrame() {
     a = REG_L(GPIOA_BASE, GPIO_IDR);
     if ((a & (1 << 8)) == 0) goto waitPclkHi2;
     
-    cnt += 1;
     if (x <= CAPTURE_W) {
-    REG_B(SPI1_BASE, SPI_DR) = (unsigned char) a;
+        REG_B(SPI1_BASE, SPI_DR) = (unsigned char) a;
     }
     
     waitPclkLo2:
@@ -221,7 +216,10 @@ void collectFrame() {
     if ((a & (1 << 12)) != 0) goto waitHrefEnd;
     
     if (--y) goto nextLine;
-
+    
+    for (x = 0; x < 4; x++) {
+        y += REG_B(SPI1_BASE, SPI_DR);
+    }
     spiEnable(0);
     spiDelay();
     uartSendDec(cnt);
