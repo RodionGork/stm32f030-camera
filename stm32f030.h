@@ -13,6 +13,7 @@
 
 #define USART_BASE 0x40013800
 #define ADC_BASE 0x40012400
+#define SPI1_BASE 0x40013000
 
 #define TIM1_BASE 0x40012C00
 #define TIM3_BASE 0x40000400
@@ -42,6 +43,11 @@
 #define ADC_SMPR 0x14
 
 #define ADC_CHSELR 0x28
+
+#define SPI_CR1 0x00
+#define SPI_CR2 0x04
+#define SPI_SR 0x08
+#define SPI_DR 0x0C
 
 #define USART_CR1 0x00
 #define USART_BRR 0x0C
