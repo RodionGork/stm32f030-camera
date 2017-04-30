@@ -10,6 +10,10 @@ int intDiv(int a, int b);
 void uartSendHex(int x, int d);
 void uartSendDec(int x);
 void setupPll(int mhz);
+void spiSetup();
+void spiDelay();
+int spiExchange(int v);
+void spiEnable(int v);
 
 #endif
 

@@ -16,34 +16,9 @@ void uartEnable(int divisor) {
     
 }
 
-void adcEnable() {
-    REG_L(GPIOA_BASE, GPIO_MODER) |= (3 << (5 * 2)); // PA5 as analog input
-    
-    REG_L(ADC_BASE, ADC_CR) &= ~1;
-    REG_L(ADC_BASE, ADC_CR) |= (1 << 31); // start calibration
-    while ((REG_L(ADC_BASE, ADC_CR) & (1 << 31)) != 0);
-    
-    REG_L(ADC_BASE, ADC_CR) |= 1;
-    while ((REG_L(ADC_BASE, ADC_ISR) & 1) == 0);
-    
-    REG_L(ADC_BASE, ADC_SMPR) |= 7;
-    
-    REG_L(ADC_BASE, ADC_CCR) |= (1 << 22); //enable vrefint
-}
-
-void adcRead(int channels) {
-    int i;
-    for (i = 0; i < channels; i++) {
-        REG_L(ADC_BASE, ADC_CR) |= (1 << 2);
-        while ((REG_L(ADC_BASE, ADC_ISR) & (1 << 2)) == 0);
-        adc[i] = REG_L(ADC_BASE, ADC_DR);
-    }
-    REG_L(ADC_BASE, ADC_ISR) |= (1 << 3);
-}
-
 void uartSend(int c) {
+    while ((REG_L(USART_BASE, USART_ISR) & (1 << 7)) == 0);
     REG_L(USART_BASE, USART_TDR) = c;
-    while ((REG_L(USART_BASE, USART_ISR) & (1 << 6)) == 0);
 }
 
 void uartSends(char* s) {
@@ -96,11 +71,51 @@ void uartSendDec(int x) {
 void setupPll(int mhz) {
     int boost = mhz / 4 - 2;
     REG_L(RCC_BASE, RCC_CR) &= ~(1 << 24); // PLLON = 0
-    while ((REG_L(RCC_BASE, RCC_CR) | (1 << 25)) == 0);
+    while ((REG_L(RCC_BASE, RCC_CR) & (1 << 25)) != 0);
     REG_L(RCC_BASE, RCC_CFGR) = (boost & 0xF) << 18;
     REG_L(RCC_BASE, RCC_CR) |= (1 << 24); // PLLON = 1
-    while ((REG_L(RCC_BASE, RCC_CR) | (1 << 25)) == 0);
+    while ((REG_L(RCC_BASE, RCC_CR) & (1 << 25)) == 0);
     REG_L(RCC_BASE, RCC_CFGR) |= (1 << 1);
     while (((REG_L(RCC_BASE, RCC_CFGR) >> 2) & 0x3) != 2);
+}
+
+void spiEnable(int v) {
+    pinOutputB(6, v ? 0 : 1);
+}
+
+void spiDelay() {
+    int n = 500000;
+    while (n--) {
+        asm("nop");
+    }
+}
+
+void spiSetup() {
+    int i;
+    REG_L(RCC_BASE, RCC_APB2ENR) |= (1 << 12); // spi1 enabled
+    for (i = 3; i <= 5; i++) {
+        REG_L(GPIOB_BASE, GPIO_MODER) &= ~(3 << (i * 2));
+        REG_L(GPIOB_BASE, GPIO_MODER) |= (2 << (i * 2)); // PBi alternate function
+        REG_L(GPIOB_BASE, GPIO_AFRL) &= ~(0xF << (i * 4));
+        REG_L(GPIOB_BASE, GPIO_AFRL) |= (0 << (i * 4)); // PBi alternate function 0
+    }
+    pinModeOutputB(6);
+    pinOutputB(6, 1);
+    REG_L(SPI1_BASE, SPI_CR2) = 0x1700;
+    REG_L(SPI1_BASE, SPI_CR1) = 0x34C;
+    
+    spiDelay();
+    spiEnable(1);
+    spiExchange(1);
+    spiExchange(0x41);
+    spiEnable(0);
+    spiDelay();
+}
+
+int spiExchange(int v) {
+    while ((REG_B(SPI1_BASE, SPI_SR) & 2) == 0);
+    REG_B(SPI1_BASE, SPI_DR) = v;
+    while ((REG_B(SPI1_BASE, SPI_SR) & 1) == 0);
+    return REG_B(SPI1_BASE, SPI_DR);
 }
 
