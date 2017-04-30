@@ -15,5 +15,16 @@ void spiDelay();
 int spiExchange(int v);
 void spiEnable(int v);
 
+void pinModeOutputA(int i);
+void pinOutputA(int i, char v);
+void pinModeInputA(int i);
+char pinInputA(int i);
+void pinModeOutputB(int i);
+void pinOutputB(int i, char v);
+void pinModeInputB(int i);
+char pinInputB(int i);
+void pinModeOutputF(int i);
+void pinOutputF(int i, char v);
+
 #endif
 

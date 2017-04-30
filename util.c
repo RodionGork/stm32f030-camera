@@ -79,15 +79,74 @@ void setupPll(int mhz) {
     while (((REG_L(RCC_BASE, RCC_CFGR) >> 2) & 0x3) != 2);
 }
 
+void pinModeOutputA(int i) {
+    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(3 << (i * 2));
+    REG_L(GPIOA_BASE, GPIO_MODER) |= (1 << (i * 2));
+}
+
+void pinOutputA(int i, char v) {
+    if (v == 0) {
+        i += 16;
+    }
+    REG_L(GPIOA_BASE, GPIO_BSRR) = (1 << i);
+}
+
+void pinModeInputA(int i) {
+    REG_L(GPIOA_BASE, GPIO_MODER) &= ~(3 << (i * 2));
+}
+
+char pinInputA(int i) {
+    return (char) ((REG_L(GPIOA_BASE, GPIO_IDR) >> i) & 1);
+}
+
+void pinModeOutputB(int i) {
+    REG_L(GPIOB_BASE, GPIO_MODER) &= ~(3 << (i * 2));
+    REG_L(GPIOB_BASE, GPIO_MODER) |= (1 << (i * 2));
+}
+
+void pinOutputB(int i, char v) {
+    if (v == 0) {
+        i += 16;
+    }
+    REG_L(GPIOB_BASE, GPIO_BSRR) = (1 << i);
+}
+
+void pinModeInputB(int i) {
+    REG_L(GPIOB_BASE, GPIO_MODER) &= ~(3 << (i * 2));
+}
+
+char pinInputB(int i) {
+    return (char) ((REG_L(GPIOB_BASE, GPIO_IDR) >> i) & 1);
+}
+
+void pinModeOutputF(int i) {
+    REG_L(GPIOF_BASE, GPIO_MODER) &= ~(3 << (i * 2));
+    REG_L(GPIOF_BASE, GPIO_MODER) |= (1 << (i * 2));
+}
+
+void pinOutputF(int i, char v) {
+    if (v == 0) {
+        i += 16;
+    }
+    REG_L(GPIOF_BASE, GPIO_BSRR) = (1 << i);
+}
+
 void spiEnable(int v) {
     pinOutputB(6, v ? 0 : 1);
 }
 
 void spiDelay() {
-    int n = 500000;
+    int n = 50;
     while (n--) {
         asm("nop");
     }
+}
+
+int spiExchange(int v) {
+    while ((REG_B(SPI1_BASE, SPI_SR) & 2) == 0);
+    REG_B(SPI1_BASE, SPI_DR) = v;
+    while ((REG_B(SPI1_BASE, SPI_SR) & 1) == 0);
+    return REG_B(SPI1_BASE, SPI_DR);
 }
 
 void spiSetup() {
@@ -110,12 +169,5 @@ void spiSetup() {
     spiExchange(0x41);
     spiEnable(0);
     spiDelay();
-}
-
-int spiExchange(int v) {
-    while ((REG_B(SPI1_BASE, SPI_SR) & 2) == 0);
-    REG_B(SPI1_BASE, SPI_DR) = v;
-    while ((REG_B(SPI1_BASE, SPI_SR) & 1) == 0);
-    return REG_B(SPI1_BASE, SPI_DR);
 }
 
